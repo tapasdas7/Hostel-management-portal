@@ -1,0 +1,333 @@
+/* =============================================================
+   Hostel Management System - Global Styles
+   Minimal, modern, responsive theme layered on Bootstrap 5.
+   ============================================================= */
+
+:root {
+    --hms-primary:   #2563eb;
+    --hms-primary-dark: #1d4ed8;
+    --hms-bg:        #f4f6fb;
+    --hms-sidebar:   #0f172a;
+    --hms-sidebar-hover: #1e293b;
+    --hms-text-muted: #64748b;
+    --hms-radius:    14px;
+}
+
+body {
+    background-color: var(--hms-bg);
+    font-family: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
+    color: #1e293b;
+}
+
+/* ---------- Login card ---------- */
+.login-wrapper {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, #1e3a8a 0%, #2563eb 50%, #3b82f6 100%);
+    padding: 1rem;
+}
+
+.login-card {
+    width: 100%;
+    max-width: 420px;
+    background: #ffffff;
+    border-radius: var(--hms-radius);
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.25);
+    padding: 2.5rem;
+}
+
+.login-card .brand-icon {
+    width: 56px;
+    height: 56px;
+    border-radius: 14px;
+    background: var(--hms-primary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 1rem;
+    color: #fff;
+    font-size: 1.5rem;
+}
+
+.login-card h1 {
+    font-size: 1.4rem;
+    font-weight: 700;
+    text-align: center;
+    margin-bottom: .25rem;
+}
+
+.login-card .subtitle {
+    text-align: center;
+    color: var(--hms-text-muted);
+    font-size: .9rem;
+    margin-bottom: 1.75rem;
+}
+
+.form-control:focus {
+    border-color: var(--hms-primary);
+    box-shadow: 0 0 0 .2rem rgba(37, 99, 235, .15);
+}
+
+.btn-primary {
+    background-color: var(--hms-primary);
+    border-color: var(--hms-primary);
+    font-weight: 600;
+}
+
+.btn-primary:hover {
+    background-color: var(--hms-primary-dark);
+    border-color: var(--hms-primary-dark);
+}
+
+/* ---------- Dashboard layout ---------- */
+.dashboard-body {
+    background-color: var(--hms-bg);
+}
+
+.sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    width: 260px;
+    background-color: var(--hms-sidebar);
+    color: #cbd5e1;
+    padding: 1.25rem 0;
+    z-index: 1040;
+    overflow-y: auto;
+    transition: transform .25s ease;
+}
+
+.sidebar .brand {
+    color: #fff;
+    font-weight: 700;
+    font-size: 1.2rem;
+    padding: 0 1.5rem 1.25rem;
+    border-bottom: 1px solid rgba(255, 255, 255, .08);
+    margin-bottom: 1rem;
+    display: flex;
+    align-items: center;
+    gap: .6rem;
+}
+
+.sidebar .brand .brand-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: var(--hms-primary);
+    flex-shrink: 0;
+}
+
+.sidebar .nav-link {
+    color: #cbd5e1;
+    padding: .75rem 1.5rem;
+    border-radius: 0;
+    font-size: .95rem;
+    display: flex;
+    align-items: center;
+    gap: .75rem;
+    cursor: pointer;
+    transition: background .15s;
+}
+
+.sidebar .nav-link:hover {
+    background-color: var(--hms-sidebar-hover);
+    color: #fff;
+}
+
+.sidebar .nav-link.active {
+    background-color: var(--hms-primary);
+    color: #fff;
+}
+
+.sidebar-section-label {
+    padding: .5rem 1.5rem;
+    font-size: .75rem;
+    text-transform: uppercase;
+    letter-spacing: .05em;
+    color: #64748b;
+    font-weight: 600;
+}
+
+/* ---------- Admin metric cards ---------- */
+.metric-card {
+    border: none;
+    border-radius: var(--hms-radius);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, .06);
+    transition: transform .15s, box-shadow .15s;
+}
+
+.metric-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 8px 20px rgba(0, 0, 0, .08);
+}
+
+.metric-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.4rem;
+    flex-shrink: 0;
+}
+
+.metric-value {
+    font-size: 1.75rem;
+    font-weight: 700;
+    line-height: 1;
+}
+
+.metric-label {
+    font-size: .8rem;
+    color: var(--hms-text-muted);
+    margin-top: .15rem;
+}
+
+.sidebar .nav-link svg {
+    width: 18px;
+    height: 18px;
+    flex-shrink: 0;
+}
+
+.main-content {
+    margin-left: 260px;
+    padding: 1.5rem;
+    min-height: 100vh;
+    transition: margin .25s ease;
+}
+
+.topbar {
+    background: #fff;
+    border-radius: var(--hms-radius);
+    padding: .85rem 1.25rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 1.5rem;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, .06);
+}
+
+.topbar .page-title {
+    font-weight: 700;
+    margin: 0;
+    font-size: 1.15rem;
+}
+
+.topbar .student-chip {
+    display: flex;
+    align-items: center;
+    gap: .65rem;
+    font-size: .9rem;
+}
+
+.topbar .student-chip .avatar {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: var(--hms-primary);
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 600;
+    font-size: .85rem;
+}
+
+/* ---------- Module panels ---------- */
+.panel {
+    display: none;
+    animation: fadeIn .3s ease;
+}
+
+.panel.active {
+    display: block;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(8px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
+.card {
+    border: none;
+    border-radius: var(--hms-radius);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, .06);
+}
+
+.card-header {
+    background: #fff;
+    border-bottom: 1px solid #eef2f7;
+    font-weight: 600;
+    border-radius: var(--hms-radius) var(--hms-radius) 0 0 !important;
+}
+
+/* ---------- Room cards ---------- */
+.room-card {
+    border-left: 4px solid #cbd5e1;
+    transition: transform .15s, box-shadow .15s;
+}
+
+.room-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 8px 20px rgba(0, 0, 0, .08);
+}
+
+.room-card.status-available {
+    border-left-color: #16a34a;
+}
+
+.room-card.status-full {
+    border-left-color: #dc2626;
+}
+
+.room-card.status-allocated {
+    border-left-color: #2563eb;
+}
+
+.room-card .room-number {
+    font-size: 1.3rem;
+    font-weight: 700;
+}
+
+/* ---------- Notices timeline ---------- */
+.notice-item {
+    border-left: 3px solid var(--hms-primary);
+    padding: .5rem 0 .5rem 1rem;
+    margin-bottom: 1.25rem;
+}
+
+.notice-item .notice-date {
+    font-size: .8rem;
+    color: var(--hms-text-muted);
+}
+
+/* ---------- Responsive: collapse sidebar on mobile ---------- */
+.sidebar-backdrop {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, .4);
+    z-index: 1035;
+}
+
+@media (max-width: 991.98px) {
+    .sidebar {
+        transform: translateX(-100%);
+    }
+
+    .sidebar.open {
+        transform: translateX(0);
+    }
+
+    .main-content {
+        margin-left: 0;
+    }
+
+    .sidebar-backdrop.show {
+        display: block;
+    }
+}
