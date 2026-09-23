@@ -46,6 +46,7 @@ CREATE TABLE IF NOT EXISTS complaints (
     subject     VARCHAR(150) NOT NULL,
     description TEXT         NOT NULL,
     status      ENUM('Pending','In-Progress','Resolved') NOT NULL DEFAULT 'Pending',
+    admin_remarks TEXT NOT NULL DEFAULT '',
     created_at  TIMESTAMP    DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT fk_complaint_student
         FOREIGN KEY (student_id) REFERENCES students(id) ON DELETE CASCADE
@@ -118,10 +119,17 @@ ALTER TABLE students
     ADD COLUMN IF NOT EXISTS mobile_number VARCHAR(20) NOT NULL DEFAULT '',
     ADD COLUMN IF NOT EXISTS department VARCHAR(100) NOT NULL DEFAULT '',
     ADD COLUMN IF NOT EXISTS year_of_study INT NOT NULL DEFAULT 1,
-    ADD COLUMN IF NOT EXISTS role ENUM('student','admin') NOT NULL DEFAULT 'student';
+    ADD COLUMN IF NOT EXISTS role ENUM('student','manager','admin') NOT NULL DEFAULT 'student';
 
-UPDATE students SET role = 'admin' WHERE sic_number = 'SIC1001';
+UPDATE students SET role = 'admin'   WHERE sic_number = 'SIC1001';
 UPDATE students SET role = 'student' WHERE sic_number = 'SIC1002';
+
+-- Seed a manager account (password: password123)
+INSERT INTO students (sic_number, first_name, last_name, email, password_hash, mobile_number, department, year_of_study, role)
+SELECT 'SIC2001', 'Rohan', 'Verma', 'rohan@example.com',
+       '$2y$10$i.x55rx1NkDcQFP4gq1zwuisNdcqwYMkL34xsxqxCMGFwyeFT6nhG',
+       '9876543210', 'Warden', 0, 'manager'
+WHERE NOT EXISTS (SELECT 1 FROM students WHERE sic_number = 'SIC2001');
 
 CREATE TABLE IF NOT EXISTS hostels (
     id            INT AUTO_INCREMENT PRIMARY KEY,
@@ -179,6 +187,7 @@ CREATE TABLE IF NOT EXISTS visitors (
     visit_date  DATE NOT NULL,
     in_time     DATETIME NOT NULL,
     out_time    DATETIME DEFAULT NULL,
+    relationship_to_student VARCHAR(60) NOT NULL DEFAULT '',
     CONSTRAINT fk_visitor_student FOREIGN KEY (student_id) REFERENCES students(id) ON DELETE CASCADE
 );
 
@@ -196,3 +205,15 @@ CREATE TABLE IF NOT EXISTS furniture (
 INSERT INTO hostels (hostel_name, no_of_rooms, no_of_students)
 SELECT 'Main Hostel', 6, 2
 WHERE NOT EXISTS (SELECT 1 FROM hostels);
+
+-- =============================================================
+-- Role separation migrations (student / manager / admin)
+-- =============================================================
+ALTER TABLE students
+    MODIFY COLUMN role ENUM('student','manager','admin') NOT NULL DEFAULT 'student';
+
+ALTER TABLE visitors
+    ADD COLUMN IF NOT EXISTS relationship_to_student VARCHAR(60) NOT NULL DEFAULT '';
+
+ALTER TABLE complaints
+    ADD COLUMN IF NOT EXISTS admin_remarks TEXT NOT NULL DEFAULT '';

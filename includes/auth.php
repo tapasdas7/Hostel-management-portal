@@ -1,12 +1,11 @@
 <?php
 /**
  * Authentication helper.
- * Starts a secure session and guards pages that require a logged-in student.
+ * Starts a secure session and guards pages by role.
  */
 
 declare(strict_types=1);
 
-// ---- Start session with secure cookie settings (if served over HTTPS) ----
 if (session_status() === PHP_SESSION_NONE) {
     session_set_cookie_params([
         'httponly' => true,
@@ -15,10 +14,6 @@ if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
 
-/**
- * Redirect to the login page if the student is not authenticated.
- * Call this at the top of every protected page (dashboard.php, etc.).
- */
 function require_auth(): void
 {
     if (!isset($_SESSION['student_id']) || empty($_SESSION['student_id'])) {
@@ -27,29 +22,34 @@ function require_auth(): void
     }
 }
 
-/**
- * Returns the current student's basic session info as an associative array,
- * or null if not logged in.
- */
 function current_student(): ?array
 {
     if (!isset($_SESSION['student_id']) || empty($_SESSION['student_id'])) {
         return null;
     }
     return [
-        'student_id'  => (int) $_SESSION['student_id'],
-        'sic_number'  => $_SESSION['sic_number']  ?? '',
-        'first_name'  => $_SESSION['first_name']  ?? '',
-        'role'        => $_SESSION['role']        ?? 'student',
+        'student_id' => (int) $_SESSION['student_id'],
+        'sic_number' => $_SESSION['sic_number'] ?? '',
+        'first_name' => $_SESSION['first_name'] ?? '',
+        'role'       => $_SESSION['role'] ?? 'student',
     ];
 }
 
-function require_admin(): void
+function require_role(string $role): void
 {
     require_auth();
-    if (($_SESSION['role'] ?? 'student') !== 'admin') {
-        http_response_code(403);
-        header('Location: dashboard.php');
-        exit('Administrator access required.');
+    if (($_SESSION['role'] ?? 'student') !== $role) {
+        redirect_by_role($_SESSION['role'] ?? 'student');
     }
+}
+
+function redirect_by_role(string $role): void
+{
+    $map = [
+        'student' => 'student_dashboard.php',
+        'manager' => 'manager_dashboard.php',
+        'admin'   => 'admin_dashboard.php',
+    ];
+    header('Location: ' . ($map[$role] ?? 'index.php'));
+    exit;
 }

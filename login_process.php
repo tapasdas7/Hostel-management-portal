@@ -4,8 +4,7 @@
  * - Receives the login form via POST.
  * - Validates input, queries the students table with a PDO prepared statement.
  * - Verifies the hashed password with password_verify().
- * - Initializes a secure $_SESSION and redirects to dashboard.php on success.
- * - Redirects back to index.php with an error message on failure.
+ * - Initializes a secure $_SESSION and redirects to the role-specific dashboard.
  */
 
 declare(strict_types=1);
@@ -13,24 +12,20 @@ declare(strict_types=1);
 require_once __DIR__ . '/config/db.php';
 require_once __DIR__ . '/includes/auth.php';
 
-// Only accept POST requests.
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     header('Location: index.php');
     exit;
 }
 
-// ---- Retrieve and sanitize input ----
 $sic_number = trim($_POST['sic_number'] ?? '');
 $password   = $_POST['password'] ?? '';
 
-// ---- Basic server-side validation ----
 if ($sic_number === '' || $password === '') {
     header('Location: index.php?error=' . urlencode('Both fields are required.'));
     exit;
 }
 
 try {
-    // ---- Look up the student by SIC number (prepared statement) ----
     $stmt = $pdo->prepare('SELECT id, sic_number, first_name, password_hash, role
                            FROM students
                            WHERE sic_number = :sic
@@ -38,24 +33,17 @@ try {
     $stmt->execute([':sic' => $sic_number]);
     $student = $stmt->fetch();
 
-    // ---- Verify the student exists AND the password matches the hash ----
     if ($student && password_verify($password, $student['password_hash'])) {
-
-        // Regenerate session ID to prevent session fixation attacks.
         session_regenerate_id(true);
 
-        // Initialize the secure session.
-        $_SESSION['student_id']  = (int) $student['id'];
-        $_SESSION['sic_number']  = $student['sic_number'];
-        $_SESSION['first_name']  = $student['first_name'];
-        $_SESSION['role']        = $student['role'];
+        $_SESSION['student_id'] = (int) $student['id'];
+        $_SESSION['sic_number'] = $student['sic_number'];
+        $_SESSION['first_name'] = $student['first_name'];
+        $_SESSION['role']       = $student['role'];
 
-        // Success -> go to dashboard.
-        header('Location: dashboard.php');
-        exit;
+        redirect_by_role($student['role']);
     }
 
-    // Failure -> generic message (do not reveal which part was wrong).
     header('Location: index.php?error=' . urlencode('Invalid SIC number or password.'));
     exit;
 
