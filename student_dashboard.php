@@ -34,6 +34,8 @@ $visitorMsg   = '';
 $visitorErr   = '';
 $appMsg       = '';
 $appErr       = '';
+$leaveMsg     = '';
+$leaveErr     = '';
 
 if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
     $action = $_POST['form_action'] ?? '';
@@ -86,6 +88,26 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
         }
     }
 
+        /* ---- New leave application (allocated student) ---- */
+    if ($action === 'new_leave') {
+        $startDate = trim($_POST['start_date'] ?? '');
+        $endDate   = trim($_POST['end_date'] ?? '');
+        $reason    = trim($_POST['reason'] ?? '');
+
+        if ($startDate === '' || $endDate === '' || $reason === '') {
+            $leaveErr = 'All fields are required.';
+        } else {
+            $pdo->prepare(
+                'INSERT INTO leave_applications (student_id, start_date, end_date, reason, status)
+                 VALUES (:sid, :sd, :ed, :rsn, "Pending")'
+            )->execute([
+                ':sid' => $studentId, ':sd' => $startDate,
+                ':ed' => $endDate, ':rsn' => $reason,
+            ]);
+            $leaveMsg = 'Leave application submitted successfully.';
+        }
+    }
+
     /* ---- New room application (unallocated student) ---- */
     if ($action === 'new_application') {
         $hostelId     = (int) ($_POST['hostel_id'] ?? 0);
@@ -134,11 +156,29 @@ $hostels = $pdo->query('SELECT id, hostel_name, no_of_rooms FROM hostels ORDER B
 
 /* ---- Gate logs (State B) ---- */
 $gateStmt = $pdo->prepare(
-    'SELECT id, log_type, log_time, status_note
+    'SELECT id, log_type, log_time, status_note, fine_amount, fine_status
      FROM gate_logs WHERE student_id = :sid ORDER BY log_time DESC'
 );
 $gateStmt->execute([':sid' => $studentId]);
 $gateLogs = $gateStmt->fetchAll();
+
+/* ---- My leave applications (State B) ---- */
+$myLeavesStmt = $pdo->prepare(
+    'SELECT id, start_date, end_date, reason, status, submitted_at
+     FROM leave_applications WHERE student_id = :sid ORDER BY submitted_at DESC'
+);
+$myLeavesStmt->execute([':sid' => $studentId]);
+$myLeaves = $myLeavesStmt->fetchAll();
+
+/* ---- My fines (State B: Night Scan fines) ---- */
+$myFinesStmt = $pdo->prepare(
+    'SELECT id, log_time, status_note, fine_amount, fine_status
+     FROM gate_logs
+     WHERE student_id = :sid AND log_type = "Night Scan" AND fine_amount > 0
+     ORDER BY log_time DESC'
+);
+$myFinesStmt->execute([':sid' => $studentId]);
+$myFines = $myFinesStmt->fetchAll();
 
 /* ---- Roommates (State B) ---- */
 $roommates = [];
@@ -228,6 +268,16 @@ $myVisitors = $myVisitorsStmt->fetchAll();
         <li class="nav-item">
             <a class="nav-link" data-panel="visitors" data-title="Visitors Log">
                 <i class="bi bi-people"></i> Visitors
+            </a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link" data-panel="leave" data-title="Leave Application">
+                <i class="bi bi-calendar2-x"></i> Leave Application
+            </a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link" data-panel="fines" data-title="Penalties / Fine Tracker">
+                <i class="bi bi-cash-coin"></i> Fine Tracker
             </a>
         </li>
         <?php endif; ?>
@@ -403,6 +453,7 @@ $myVisitors = $myVisitorsStmt->fetchAll();
                 <i class="bi bi-lock-fill display-1 text-muted"></i>
                 <h4 class="mt-3">Access Denied</h4>
                 <p class="text-muted">Please wait for your room allocation request to be approved before using hostel portal services.</p>
+                <p class="text-muted small mt-2">Leave Application and Fine Tracker features are strictly reserved for hostellites with active room allocations.</p>
             </div>
         </div>
     </div>
@@ -423,6 +474,15 @@ $myVisitors = $myVisitorsStmt->fetchAll();
                             <div class="col-6 mb-1"><strong>Sharing:</strong> <?= e($myRoom['sharing_style']) ?></div>
                             <div class="col-6"><strong>Capacity:</strong> <?= (int)$myRoom['total_capacity'] ?></div>
                             <div class="col-6"><strong>Occupied:</strong> <?= (int)$myRoom['occupied'] ?></div>
+                        </div>
+                        <hr class="my-2">
+                        <div class="d-flex align-items-center gap-2">
+                            <i class="bi bi-wifi text-primary"></i>
+                            <div class="small">
+                                <span class="badge bg-success me-1">Wi-Fi</span>
+                                <strong><?= e($myRoom['wifi_name'] ?? 'Hostel_HighSpeed_5G') ?></strong>
+                                <span class="text-muted ms-1">| Pass: <code><?= e($myRoom['wifi_password'] ?? 'Hostel@2026') ?></code></span>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -666,6 +726,105 @@ $myVisitors = $myVisitorsStmt->fetchAll();
                         <?php endif; ?>
                     </div>
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Panel: Leave Application -->
+    <div class="panel" id="panel-leave">
+        <div class="row g-4">
+            <div class="col-lg-5">
+                <div class="card">
+                    <div class="card-header"><i class="bi bi-calendar2-x me-1"></i> Apply for Leave</div>
+                    <div class="card-body">
+                        <?php if ($leaveMsg): ?>
+                            <div class="alert alert-success py-2 small"><?= e($leaveMsg) ?></div>
+                        <?php endif; ?>
+                        <?php if ($leaveErr): ?>
+                            <div class="alert alert-danger py-2 small"><?= e($leaveErr) ?></div>
+                        <?php endif; ?>
+                        <form method="POST" action="student_dashboard.php" class="needs-validation" novalidate>
+                            <input type="hidden" name="form_action" value="new_leave">
+                            <div class="mb-3">
+                                <label class="form-label">Start Date</label>
+                                <input type="date" name="start_date" class="form-control" required>
+                                <div class="invalid-feedback">Start date is required.</div>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">End Date</label>
+                                <input type="date" name="end_date" class="form-control" required>
+                                <div class="invalid-feedback">End date is required.</div>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Reason</label>
+                                <textarea name="reason" class="form-control" rows="3" placeholder="Reason for leave" required></textarea>
+                                <div class="invalid-feedback">Reason is required.</div>
+                            </div>
+                            <button type="submit" class="btn btn-primary w-100">Submit Leave Request</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-7">
+                <div class="card">
+                    <div class="card-header"><i class="bi bi-clock-history me-1"></i> Your Leave History</div>
+                    <div class="card-body">
+                        <?php if (empty($myLeaves)): ?>
+                            <p class="text-muted text-center my-4">No leave applications submitted yet.</p>
+                        <?php else: ?>
+                            <div class="table-responsive">
+                                <table class="table table-hover align-middle">
+                                    <thead><tr><th>Start</th><th>End</th><th>Reason</th><th>Submitted</th><th>Status</th></tr></thead>
+                                    <tbody>
+                                        <?php foreach ($myLeaves as $l): ?>
+                                            <tr>
+                                                <td class="small"><?= date('d M Y', strtotime($l['start_date'])) ?></td>
+                                                <td class="small"><?= date('d M Y', strtotime($l['end_date'])) ?></td>
+                                                <td class="small"><?= e($l['reason']) ?></td>
+                                                <td class="small"><?= date('d M Y', strtotime($l['submitted_at'])) ?></td>
+                                                <td><span class="badge <?= statusBadgeClass($l['status']) ?>"><?= e($l['status']) ?></span></td>
+                                            </tr>
+                                        <?php endforeach; ?>
+                                    </tbody>
+                                </table>
+                            </div>
+                        <?php endif; ?>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Panel: Penalties / Fine Tracker -->
+    <div class="panel" id="panel-fines">
+        <div class="card">
+            <div class="card-header"><i class="bi bi-cash-coin me-1"></i> Penalties & Fine Tracker</div>
+            <div class="card-body">
+                <?php if (empty($myFines)): ?>
+                    <p class="text-muted text-center my-4">No fines recorded. You are all clear!</p>
+                <?php else: ?>
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle">
+                            <thead><tr><th>Date</th><th>Note</th><th>Amount</th><th>Status</th></tr></thead>
+                            <tbody>
+                                <?php foreach ($myFines as $f): ?>
+                                    <tr>
+                                        <td class="small"><?= date('d M Y, h:i A', strtotime($f['log_time'])) ?></td>
+                                        <td class="small"><?= e($f['status_note']) ?></td>
+                                        <td><strong>&#8377;<?= number_format((float)$f['fine_amount'], 2) ?></strong></td>
+                                        <td>
+                                            <?php if ($f['fine_status'] === 'Unpaid'): ?>
+                                                <span class="badge bg-danger"><?= e($f['fine_status']) ?></span>
+                                            <?php else: ?>
+                                                <span class="badge bg-success"><?= e($f['fine_status']) ?></span>
+                                            <?php endif; ?>
+                                        </td>
+                                    </tr>
+                                <?php endforeach; ?>
+                            </tbody>
+                        </table>
+                    </div>
+                <?php endif; ?>
             </div>
         </div>
     </div>

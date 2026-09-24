@@ -295,6 +295,109 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
             $actionMsg = 'Hostel deleted.';
         }
     }
+
+    /* ---- Approve leave application ---- */
+    if ($action === 'approve_leave') {
+        $leaveId = (int) ($_POST['leave_id'] ?? 0);
+        if ($leaveId > 0) {
+            $pdo->prepare('UPDATE leave_applications SET status = "Approved" WHERE id = :lid AND status = "Pending"')
+                ->execute([':lid' => $leaveId]);
+            $actionMsg = 'Leave application approved.';
+        }
+    }
+
+    /* ---- Reject leave application ---- */
+    if ($action === 'reject_leave') {
+        $leaveId = (int) ($_POST['leave_id'] ?? 0);
+        if ($leaveId > 0) {
+            $pdo->prepare('UPDATE leave_applications SET status = "Rejected" WHERE id = :lid AND status = "Pending"')
+                ->execute([':lid' => $leaveId]);
+            $actionMsg = 'Leave application rejected.';
+        }
+    }
+
+    /* ---- Night scan: mark a student present ---- */
+    if ($action === 'night_scan') {
+        $sic = trim($_POST['sic_number'] ?? '');
+        if ($sic === '') {
+            $actionErr = 'Please enter a SIC number.';
+        } else {
+            $stu = $pdo->prepare('SELECT id FROM students WHERE sic_number = :sic AND room_id IS NOT NULL');
+            $stu->execute([':sic' => $sic]);
+            $studentRow = $stu->fetch();
+
+            if (!$studentRow) {
+                $actionErr = 'SIC not found or student has no room allocated.';
+            } else {
+                $check = $pdo->prepare(
+                    'SELECT id FROM gate_logs
+                     WHERE student_id = :sid AND log_type = "Night Scan"
+                       AND DATE(log_time) = CURDATE()'
+                );
+                $check->execute([':sid' => $studentRow['id']]);
+
+                if ($check->fetch()) {
+                    $actionErr = 'Student already scanned tonight.';
+                } else {
+                    $pdo->prepare(
+                        'INSERT INTO gate_logs (student_id, log_type, status_note, fine_amount, fine_status)
+                         VALUES (:sid, "Night Scan", "Present via Scanner", 0.00, "N/A")'
+                    )->execute([':sid' => $studentRow['id']]);
+                    $actionMsg = 'Student ' . e($sic) . ' marked present.';
+                }
+            }
+        }
+    }
+
+    /* ---- Close night scan & process absentees ---- */
+    if ($action === 'process_absentees') {
+        $hostellites = $pdo->query(
+            'SELECT id FROM students WHERE room_id IS NOT NULL AND role = "student"'
+        )->fetchAll(PDO::FETCH_COLUMN);
+
+        $count = 0;
+        foreach ($hostellites as $hid) {
+            $check = $pdo->prepare(
+                'SELECT id FROM gate_logs
+                 WHERE student_id = :sid AND log_type = "Night Scan"
+                   AND DATE(log_time) = CURDATE()'
+            );
+            $check->execute([':sid' => $hid]);
+            if (!$check->fetch()) {
+                $pdo->prepare(
+                    'INSERT INTO gate_logs (student_id, log_type, status_note, fine_amount, fine_status)
+                     VALUES (:sid, "Night Scan", "Absent from Night Check", 50.00, "Unpaid")'
+                )->execute([':sid' => $hid]);
+                $count++;
+            }
+        }
+        $actionMsg = "Night scan closed. {$count} absent student(s) fined.";
+    }
+
+    /* ---- Mark fine as paid ---- */
+    if ($action === 'mark_fine_paid') {
+        $logId = (int) ($_POST['log_id'] ?? 0);
+        if ($logId > 0) {
+            $pdo->prepare('UPDATE gate_logs SET fine_status = "Paid" WHERE id = :lid AND fine_status = "Unpaid"')
+                ->execute([':lid' => $logId]);
+            $actionMsg = 'Fine marked as paid.';
+        }
+    }
+
+    /* ---- Update room Wi-Fi credentials ---- */
+    if ($action === 'update_wifi') {
+        $roomId = (int) ($_POST['room_id'] ?? 0);
+        $wifiName = trim($_POST['wifi_name'] ?? '');
+        $wifiPass = trim($_POST['wifi_password'] ?? '');
+
+        if ($roomId > 0 && $wifiName !== '' && $wifiPass !== '') {
+            $pdo->prepare('UPDATE rooms SET wifi_name = :wn, wifi_password = :wp WHERE id = :rid')
+                ->execute([':wn' => $wifiName, ':wp' => $wifiPass, ':rid' => $roomId]);
+            $actionMsg = 'Wi-Fi credentials updated.';
+        } else {
+            $actionErr = 'All Wi-Fi fields are required.';
+        }
+    }
 }
 
 /* =========================================================
@@ -404,3 +507,43 @@ $metrics = [
     'available_beds'         => (int) $pdo->query('SELECT COALESCE(SUM(total_capacity - occupied),0) FROM rooms')->fetchColumn(),
     'unresolved_complaints'   => (int) $pdo->query('SELECT COUNT(*) FROM complaints WHERE status IN ("Pending","In-Progress")')->fetchColumn(),
 ];
+
+/* ---- All leave applications ---- */
+$allLeaves = $pdo->query(
+    'SELECT la.id, s.sic_number, s.first_name, la.start_date, la.end_date,
+            la.reason, la.status, la.submitted_at
+     FROM leave_applications la
+     INNER JOIN students s ON s.id = la.student_id
+     ORDER BY la.submitted_at DESC'
+)->fetchAll();
+
+/* ---- All unpaid fines (Night Scan with fine_amount > 0 and Unpaid) ---- */
+$unpaidFines = $pdo->query(
+    'SELECT gl.id, gl.student_id, s.sic_number, s.first_name, r.room_number,
+            gl.log_time, gl.fine_amount, gl.fine_status
+     FROM gate_logs gl
+     INNER JOIN students s ON s.id = gl.student_id
+     LEFT JOIN rooms r ON r.id = s.room_id
+     WHERE gl.log_type = "Night Scan" AND gl.fine_amount > 0 AND gl.fine_status = "Unpaid"
+     ORDER BY gl.log_time DESC'
+)->fetchAll();
+
+/* ---- All night scan records (recent) ---- */
+$nightScans = $pdo->query(
+    'SELECT gl.id, s.sic_number, s.first_name, r.room_number,
+            gl.log_time, gl.status_note, gl.fine_amount, gl.fine_status
+     FROM gate_logs gl
+     INNER JOIN students s ON s.id = gl.student_id
+     LEFT JOIN rooms r ON r.id = s.room_id
+     WHERE gl.log_type = "Night Scan"
+     ORDER BY gl.log_time DESC
+     LIMIT 50'
+)->fetchAll();
+
+/* ---- All rooms with Wi-Fi info ---- */
+$allRoomsWifi = $pdo->query(
+    'SELECT id, room_number, type, sharing_style, total_capacity, occupied,
+            wifi_name, wifi_password
+     FROM rooms
+     ORDER BY room_number'
+)->fetchAll();

@@ -217,3 +217,26 @@ ALTER TABLE visitors
 
 ALTER TABLE complaints
     ADD COLUMN IF NOT EXISTS admin_remarks TEXT NOT NULL DEFAULT '';
+
+-- =============================================================
+-- Leave applications, Night Scan fines, Wi-Fi tracking
+-- =============================================================
+CREATE TABLE IF NOT EXISTS leave_applications (
+    id          INT AUTO_INCREMENT PRIMARY KEY,
+    student_id  INT NOT NULL,
+    start_date  DATE NOT NULL,
+    end_date    DATE NOT NULL,
+    reason      TEXT NOT NULL,
+    status      ENUM('Pending','Approved','Rejected') NOT NULL DEFAULT 'Pending',
+    submitted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT fk_leave_student FOREIGN KEY (student_id) REFERENCES students(id) ON DELETE CASCADE
+);
+
+ALTER TABLE rooms
+    ADD COLUMN IF NOT EXISTS wifi_name VARCHAR(50) NOT NULL DEFAULT 'Hostel_HighSpeed_5G',
+    ADD COLUMN IF NOT EXISTS wifi_password VARCHAR(50) NOT NULL DEFAULT 'Hostel@2026';
+
+ALTER TABLE gate_logs
+    MODIFY COLUMN log_type ENUM('Check-in','Check-out','Late-night Leave','Night Scan') NOT NULL,
+    ADD COLUMN IF NOT EXISTS fine_amount DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+    ADD COLUMN IF NOT EXISTS fine_status ENUM('N/A','Unpaid','Paid') NOT NULL DEFAULT 'N/A';

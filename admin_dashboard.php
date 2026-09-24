@@ -87,6 +87,26 @@ $managers = $pdo->query(
             </a>
         </li>
         <li class="nav-item">
+            <a class="nav-link" data-panel="leave" data-title="Leave Applications Desk">
+                <i class="bi bi-calendar2-x"></i> Leave Desk
+            </a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link" data-panel="nightscan" data-title="Night Attendance Scanner">
+                <i class="bi bi-qr-barcode-scan"></i> Night Scanner
+            </a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link" data-panel="fines" data-title="Fine Collector">
+                <i class="bi bi-cash-coin"></i> Fine Collector
+            </a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link" data-panel="wifi" data-title="Wi-Fi Management">
+                <i class="bi bi-wifi"></i> Wi-Fi Mgmt
+            </a>
+        </li>
+        <li class="nav-item">
             <a class="nav-link" data-panel="furniture" data-title="Furniture Inventory">
                 <i class="bi bi-lamp"></i> Furniture
             </a>
@@ -745,6 +765,187 @@ $managers = $pdo->query(
                         </table>
                     </div>
                 <?php endif; ?>
+            </div>
+        </div>
+    </div>
+
+    <!-- Panel: Leave Applications Approval Desk -->
+    <div class="panel" id="panel-leave">
+        <div class="card">
+            <div class="card-header"><i class="bi bi-calendar2-x me-1"></i> Leave Applications Approval Desk</div>
+            <div class="card-body">
+                <?php if (empty($allLeaves)): ?>
+                    <p class="text-muted text-center my-4">No leave applications submitted.</p>
+                <?php else: ?>
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle">
+                            <thead><tr><th>Student</th><th>Start</th><th>End</th><th>Reason</th><th>Submitted</th><th>Status</th><th>Action</th></tr></thead>
+                            <tbody>
+                                <?php foreach ($allLeaves as $l): ?>
+                                <tr>
+                                    <td><?= e($l['first_name'] . ' (' . $l['sic_number'] . ')') ?></td>
+                                    <td class="small"><?= date('d M Y', strtotime($l['start_date'])) ?></td>
+                                    <td class="small"><?= date('d M Y', strtotime($l['end_date'])) ?></td>
+                                    <td class="small"><?= e($l['reason']) ?></td>
+                                    <td class="small"><?= date('d M Y', strtotime($l['submitted_at'])) ?></td>
+                                    <td><span class="badge <?= statusBadgeClass($l['status']) ?>"><?= e($l['status']) ?></span></td>
+                                    <td>
+                                        <?php if ($l['status'] === 'Pending'): ?>
+                                            <form method="POST" action="admin_dashboard.php" class="d-inline">
+                                                <input type="hidden" name="form_action" value="approve_leave">
+                                                <input type="hidden" name="leave_id" value="<?= (int)$l['id'] ?>">
+                                                <button type="submit" class="btn btn-sm btn-success" onclick="return confirm('Approve this leave?')"><i class="bi bi-check-lg"></i> Approve</button>
+                                            </form>
+                                            <form method="POST" action="admin_dashboard.php" class="d-inline">
+                                                <input type="hidden" name="form_action" value="reject_leave">
+                                                <input type="hidden" name="leave_id" value="<?= (int)$l['id'] ?>">
+                                                <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('Reject this leave?')"><i class="bi bi-x-lg"></i> Reject</button>
+                                            </form>
+                                        <?php else: ?>
+                                            <span class="text-muted small">Reviewed</span>
+                                        <?php endif; ?>
+                                    </td>
+                                </tr>
+                                <?php endforeach; ?>
+                            </tbody>
+                        </table>
+                    </div>
+                <?php endif; ?>
+            </div>
+        </div>
+    </div>
+
+    <!-- Panel: Night Attendance Scanner -->
+    <div class="panel" id="panel-nightscan">
+        <div class="row g-4">
+            <div class="col-lg-5">
+                <div class="card">
+                    <div class="card-header"><i class="bi bi-qr-barcode-scan me-1"></i> Digital Night Scanner</div>
+                    <div class="card-body">
+                        <p class="text-muted small mb-3">Enter or scan a student's SIC number to mark them present for tonight's attendance.</p>
+                        <form method="POST" action="admin_dashboard.php" class="needs-validation" novalidate>
+                            <input type="hidden" name="form_action" value="night_scan">
+                            <div class="mb-3">
+                                <label class="form-label">Student SIC Number</label>
+                                <div class="input-group">
+                                    <span class="input-group-text"><i class="bi bi-person-badge"></i></span>
+                                    <input type="text" name="sic_number" class="form-control" placeholder="e.g. SIC1001" required autofocus>
+                                    <button type="submit" class="btn btn-primary"><i class="bi bi-check-lg me-1"></i> Scan</button>
+                                </div>
+                                <div class="invalid-feedback">Please enter a SIC number.</div>
+                            </div>
+                        </form>
+                        <hr>
+                        <form method="POST" action="admin_dashboard.php">
+                            <input type="hidden" name="form_action" value="process_absentees">
+                            <button type="submit" class="btn btn-danger w-100" onclick="return confirm('Close tonight\'s scan and fine all absent hostellites ₹50 each?')">
+                                <i class="bi bi-box-arrow-right me-1"></i> Close Night Scan & Process Absentees
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-7">
+                <div class="card">
+                    <div class="card-header"><i class="bi bi-clock-history me-1"></i> Tonight's Scan Log</div>
+                    <div class="card-body">
+                        <?php if (empty($nightScans)): ?>
+                            <p class="text-muted text-center my-4">No scans recorded yet.</p>
+                        <?php else: ?>
+                            <div class="table-responsive">
+                                <table class="table table-hover align-middle">
+                                    <thead><tr><th>Student</th><th>Room</th><th>Time</th><th>Note</th><th>Fine</th><th>Status</th></tr></thead>
+                                    <tbody>
+                                        <?php foreach ($nightScans as $ns): ?>
+                                        <tr>
+                                            <td><?= e($ns['first_name'] . ' (' . $ns['sic_number'] . ')') ?></td>
+                                            <td class="small"><?= e($ns['room_number'] ?? '—') ?></td>
+                                            <td class="small"><?= date('d M Y, h:i A', strtotime($ns['log_time'])) ?></td>
+                                            <td class="small"><?= e($ns['status_note']) ?></td>
+                                            <td class="small"><?= $ns['fine_amount'] > 0 ? '&#8377;' . number_format((float)$ns['fine_amount'], 2) : '—' ?></td>
+                                            <td>
+                                                <?php if ($ns['fine_status'] === 'Unpaid'): ?>
+                                                    <span class="badge bg-danger">Unpaid</span>
+                                                <?php elseif ($ns['fine_status'] === 'Paid'): ?>
+                                                    <span class="badge bg-success">Paid</span>
+                                                <?php else: ?>
+                                                    <span class="badge bg-secondary">N/A</span>
+                                                <?php endif; ?>
+                                            </td>
+                                        </tr>
+                                        <?php endforeach; ?>
+                                    </tbody>
+                                </table>
+                            </div>
+                        <?php endif; ?>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Panel: Fine Collector -->
+    <div class="panel" id="panel-fines">
+        <div class="card">
+            <div class="card-header"><i class="bi bi-cash-coin me-1"></i> Fine Collector Ledger</div>
+            <div class="card-body">
+                <?php if (empty($unpaidFines)): ?>
+                    <p class="text-muted text-center my-4">No unpaid fines. All clear!</p>
+                <?php else: ?>
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle">
+                            <thead><tr><th>Student</th><th>Room</th><th>Date</th><th>Amount</th><th>Status</th><th>Action</th></tr></thead>
+                            <tbody>
+                                <?php foreach ($unpaidFines as $f): ?>
+                                <tr>
+                                    <td><?= e($f['first_name'] . ' (' . $f['sic_number'] . ')') ?></td>
+                                    <td class="small"><?= e($f['room_number'] ?? '—') ?></td>
+                                    <td class="small"><?= date('d M Y, h:i A', strtotime($f['log_time'])) ?></td>
+                                    <td><strong>&#8377;<?= number_format((float)$f['fine_amount'], 2) ?></strong></td>
+                                    <td><span class="badge bg-danger">Unpaid</span></td>
+                                    <td>
+                                        <form method="POST" action="admin_dashboard.php" class="d-inline">
+                                            <input type="hidden" name="form_action" value="mark_fine_paid">
+                                            <input type="hidden" name="log_id" value="<?= (int)$f['id'] ?>">
+                                            <button type="submit" class="btn btn-sm btn-success"><i class="bi bi-check-lg me-1"></i> Mark as Paid</button>
+                                        </form>
+                                    </td>
+                                </tr>
+                                <?php endforeach; ?>
+                            </tbody>
+                        </table>
+                    </div>
+                <?php endif; ?>
+            </div>
+        </div>
+    </div>
+
+    <!-- Panel: Wi-Fi Management -->
+    <div class="panel" id="panel-wifi">
+        <div class="card">
+            <div class="card-header"><i class="bi bi-wifi me-1"></i> Wi-Fi Management Control</div>
+            <div class="card-body">
+                <p class="text-muted small mb-3">Update Wi-Fi credentials for any room. Changes are instantly visible to the student's room card.</p>
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle">
+                        <thead><tr><th>Room</th><th>Type</th><th>Wi-Fi Name</th><th>Wi-Fi Password</th><th>Action</th></tr></thead>
+                        <tbody>
+                            <?php foreach ($allRoomsWifi as $rm): ?>
+                            <tr>
+                                <td><strong><?= e($rm['room_number']) ?></strong></td>
+                                <td class="small"><?= e($rm['type']) ?> / <?= e($rm['sharing_style']) ?></td>
+                                <form method="POST" action="admin_dashboard.php" class="d-flex gap-1 align-items-center">
+                                    <input type="hidden" name="form_action" value="update_wifi">
+                                    <input type="hidden" name="room_id" value="<?= (int)$rm['id'] ?>">
+                                    <td><input type="text" name="wifi_name" class="form-control form-control-sm" value="<?= e($rm['wifi_name']) ?>" style="width:160px"></td>
+                                    <td><input type="text" name="wifi_password" class="form-control form-control-sm" value="<?= e($rm['wifi_password']) ?>" style="width:140px"></td>
+                                    <td><button type="submit" class="btn btn-sm btn-primary"><i class="bi bi-check-lg"></i> Update</button></td>
+                                </form>
+                            </tr>
+                            <?php endforeach; ?>
+                        </tbody>
+                    </table>
+                </div>
             </div>
         </div>
     </div>
