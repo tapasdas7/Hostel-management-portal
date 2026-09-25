@@ -47,43 +47,19 @@ The student dashboard adapts its layout based on whether the student has a room 
 - **Manage Hostels & Managers** - create/delete manager accounts and hostels.
 - **Full Operational Inheritance** - all manager panels (allocation, complaints, notices, visitors, vacancy, furniture).
 
-## Project Structure
-
-```
-.
-├── assets/
-│   ├── css/style.css
-│   └── js/dashboard.js
-├── config/
-│   └── db.php
-├── includes/
-│   ├── auth.php             # Session + role guards + role-based redirect
-│   ├── helpers.php          # Shared badge/utility helpers
-│   └── admin_shared.php     # Shared POST handlers + data fetchers (manager/admin)
-├── database/
-│   └── schema.sql
-├── index.php                # Login page
-├── login_process.php        # Login backend (role-aware routing)
-├── logout.php
-├── student_dashboard.php
-├── manager_dashboard.php
-├── admin_dashboard.php
-└── README.md
-```
-
 ## Database Schema
 
 | Table               | Purpose                                                    |
 |---------------------|------------------------------------------------------------|
-| `students`          | Login accounts, role (student/manager/admin), room link   |
+| `students`          | Login accounts, role (student/manager/admin), room link    |
 | `hostels`           | Hostel names, room counts, student counts                  |
 | `rooms`             | Room details, capacity, occupancy, hostel link             |
 | `complaints`        | Student complaints with ticket IDs, status, admin_remarks  |
 | `notices`           | Manager/admin-published notices                            |
-| `gate_logs`         | Check-in / check-out / late-night movement logs             |
+| `gate_logs`         | Check-in / check-out / late-night movement logs            |
 | `applications`      | Student room applications with approval status             |
 | `vacating_requests` | Student room vacating requests with approval status        |
-| `visitors`          | Visitor records with relationship_to_student              |
+| `visitors`          | Visitor records with relationship_to_student               |
 | `furniture`         | Per-room furniture inventory with condition notes          |
 | `administrators`    | Links manager records to hostel assignments                |
 
@@ -116,8 +92,8 @@ php -S localhost:8000
 | SIC Number | Password      | Role    | Dashboard             |
 |------------|---------------|---------|-----------------------|
 | SIC1001    | password123   | admin   | admin_dashboard.php   |
-| SIC1002    | password123   | student | student_dashboard.php|
-| SIC2001    | password123   | manager | manager_dashboard.php|
+| SIC1002    | password123   | student | student_dashboard.php |
+| SIC2001    | password123   | manager | manager_dashboard.php |
 
 ## Security
 
