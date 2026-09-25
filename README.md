@@ -90,9 +90,12 @@ The student dashboard adapts its layout based on whether the student has a room 
 ## Setup
 
 ### 1. Create the database
+Run the single master schema file:
 ```bash
 mysql -u root -p < database/schema.sql
 ```
+
+> `database/migration.sql` is kept only as a legacy note and is no longer required.
 
 ### 2. Configure credentials
 Edit `config/db.php` and set your MySQL host, database name, username, and password.

@@ -6,6 +6,12 @@
  * State B (allocated): notices, gate logs, my room + roommates, complaints, visitors
  */
 
+declare(strict_types=1);
+
+ini_set('display_errors', '1');
+ini_set('display_startup_errors', '1');
+error_reporting(E_ALL);
+
 require_once __DIR__ . '/config/db.php';
 require_once __DIR__ . '/includes/auth.php';
 require_once __DIR__ . '/includes/helpers.php';
@@ -15,13 +21,16 @@ $student   = current_student();
 $studentId = $student['student_id'];
 
 /* ---- Determine allocation state ---- */
-$myRoomStmt = $pdo->prepare(
-    'SELECT r.* FROM rooms r
+$myRoomStmt = $conn->prepare(
+    'SELECT r.*, h.wifi_name, h.wifi_password FROM rooms r
      INNER JOIN students s ON s.room_id = r.id
-     WHERE s.id = :sid'
+     LEFT JOIN hostels h ON h.id = r.hostel_id
+     WHERE s.id = ?'
 );
-$myRoomStmt->execute([':sid' => $studentId]);
-$myRoom = $myRoomStmt->fetch();
+$myRoomStmt->bind_param('i', $studentId);
+$myRoomStmt->execute();
+$result = $myRoomStmt->get_result();
+$myRoom = $result->fetch_assoc();
 
 $isAllocated = $myRoom !== false;
 
@@ -53,13 +62,12 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
             $complaintErr = 'Invalid category.';
         } else {
             $ticketId = 'TKT-' . date('Y') . '-' . strtoupper(substr(uniqid(), -5));
-            $pdo->prepare(
+            $stmt = $conn->prepare(
                 'INSERT INTO complaints (student_id, ticket_id, category, subject, description, status)
-                 VALUES (:sid, :tk, :cat, :sub, :desc, "Pending")'
-            )->execute([
-                ':sid' => $studentId, ':tk' => $ticketId, ':cat' => $category,
-                ':sub' => $subject, ':desc' => $description,
-            ]);
+                 VALUES (?, ?, ?, ?, ?, "Pending")'
+            );
+            $stmt->bind_param('issss', $studentId, $ticketId, $category, $subject, $description);
+            $stmt->execute();
             $complaintMsg = 'Complaint submitted. Ticket ID: ' . $ticketId;
         }
     }
@@ -77,13 +85,12 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
         } elseif (!in_array($relation, $allowedRel, true)) {
             $visitorErr = 'Invalid relationship selected.';
         } else {
-            $pdo->prepare(
+            $stmt = $conn->prepare(
                 'INSERT INTO visitors (student_id, visitor_name, visit_date, in_time, relationship_to_student)
-                 VALUES (:sid, :vn, :vd, :it, :rel)'
-            )->execute([
-                ':sid' => $studentId, ':vn' => $vName, ':vd' => $vDate,
-                ':it' => $inTime, ':rel' => $relation,
-            ]);
+                 VALUES (?, ?, ?, ?, ?)'
+            );
+            $stmt->bind_param('issss', $studentId, $vName, $vDate, $inTime, $relation);
+            $stmt->execute();
             $visitorMsg = 'Visitor registered successfully.';
         }
     }
@@ -97,13 +104,12 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
         if ($startDate === '' || $endDate === '' || $reason === '') {
             $leaveErr = 'All fields are required.';
         } else {
-            $pdo->prepare(
+            $stmt = $conn->prepare(
                 'INSERT INTO leave_applications (student_id, start_date, end_date, reason, status)
-                 VALUES (:sid, :sd, :ed, :rsn, "Pending")'
-            )->execute([
-                ':sid' => $studentId, ':sd' => $startDate,
-                ':ed' => $endDate, ':rsn' => $reason,
-            ]);
+                 VALUES (?, ?, ?, ?, "Pending")'
+            );
+            $stmt->bind_param('isss', $studentId, $startDate, $endDate, $reason);
+            $stmt->execute();
             $leaveMsg = 'Leave application submitted successfully.';
         }
     }
@@ -118,13 +124,12 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
             $appErr = 'All fields are required.';
         } else {
             $appNo = 'APP-' . date('Y') . '-' . strtoupper(substr(uniqid(), -5));
-            $pdo->prepare(
+            $stmt = $conn->prepare(
                 'INSERT INTO applications (student_id, hostel_id, application_no, academic_year, purpose, status)
-                 VALUES (:sid, :hid, :ano, :ay, :pur, "Pending")'
-            )->execute([
-                ':sid' => $studentId, ':hid' => $hostelId, ':ano' => $appNo,
-                ':ay' => $academicYear, ':pur' => $purpose,
-            ]);
+                 VALUES (?, ?, ?, ?, ?, "Pending")'
+            );
+            $stmt->bind_param('iisss', $studentId, $hostelId, $appNo, $academicYear, $purpose);
+            $stmt->execute();
             $appMsg = 'Application submitted. Application No: ' . $appNo;
         }
     }
@@ -135,156 +140,181 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
    ========================================================= */
 
 /* ---- Notices (both states) ---- */
-$notices = $pdo->query('SELECT id, title, content, created_at FROM notices ORDER BY created_at DESC LIMIT 10')->fetchAll();
+$noticesResult = $conn->query('SELECT id, title, content, created_at FROM notices ORDER BY created_at DESC LIMIT 10');
+$notices = $noticesResult->fetch_all(MYSQLI_ASSOC);
 
 /* ---- All rooms (State A only) ---- */
-$allRooms = $pdo->query('SELECT * FROM rooms ORDER BY room_number')->fetchAll();
+$allRoomsResult = $conn->query('SELECT * FROM rooms ORDER BY room_number');
+$allRooms = $allRoomsResult->fetch_all(MYSQLI_ASSOC);
 
 /* ---- My applications (State A) ---- */
-$myAppsStmt = $pdo->prepare(
+$myAppsStmt = $conn->prepare(
     'SELECT a.application_no, h.hostel_name, a.academic_year, a.purpose, a.status, a.submitted_at
      FROM applications a
      INNER JOIN hostels h ON h.id = a.hostel_id
-     WHERE a.student_id = :sid
+     WHERE a.student_id = ?
      ORDER BY a.submitted_at DESC'
 );
-$myAppsStmt->execute([':sid' => $studentId]);
-$myApplications = $myAppsStmt->fetchAll();
+$myAppsStmt->bind_param('i', $studentId);
+$myAppsStmt->execute();
+$myAppsResult = $myAppsStmt->get_result();
+$myApplications = $myAppsResult->fetch_all(MYSQLI_ASSOC);
 
 /* ---- Hostels for dropdown ---- */
-$hostels = $pdo->query('SELECT id, hostel_name, no_of_rooms FROM hostels ORDER BY hostel_name')->fetchAll();
+$hostelsResult = $conn->query('SELECT id, hostel_name, no_of_rooms FROM hostels ORDER BY hostel_name');
+$hostels = $hostelsResult->fetch_all(MYSQLI_ASSOC);
 
 /* ---- Gate logs (State B) ---- */
-$gateStmt = $pdo->prepare(
+$gateStmt = $conn->prepare(
     'SELECT id, log_type, log_time, status_note, fine_amount, fine_status
-     FROM gate_logs WHERE student_id = :sid ORDER BY log_time DESC'
+     FROM gate_logs WHERE student_id = ? ORDER BY log_time DESC'
 );
-$gateStmt->execute([':sid' => $studentId]);
-$gateLogs = $gateStmt->fetchAll();
+$gateStmt->bind_param('i', $studentId);
+$gateStmt->execute();
+$gateResult = $gateStmt->get_result();
+$gateLogs = $gateResult->fetch_all(MYSQLI_ASSOC);
 
 /* ---- My leave applications (State B) ---- */
-$myLeavesStmt = $pdo->prepare(
+$myLeavesStmt = $conn->prepare(
     'SELECT id, start_date, end_date, reason, status, submitted_at
-     FROM leave_applications WHERE student_id = :sid ORDER BY submitted_at DESC'
+     FROM leave_applications WHERE student_id = ? ORDER BY submitted_at DESC'
 );
-$myLeavesStmt->execute([':sid' => $studentId]);
-$myLeaves = $myLeavesStmt->fetchAll();
+$myLeavesStmt->bind_param('i', $studentId);
+$myLeavesStmt->execute();
+$myLeavesResult = $myLeavesStmt->get_result();
+$myLeaves = $myLeavesResult->fetch_all(MYSQLI_ASSOC);
 
 /* ---- My fines (State B: Night Scan fines) ---- */
-$myFinesStmt = $pdo->prepare(
+$myFinesStmt = $conn->prepare(
     'SELECT id, log_time, status_note, fine_amount, fine_status
      FROM gate_logs
-     WHERE student_id = :sid AND log_type = "Night Scan" AND fine_amount > 0
+     WHERE student_id = ? AND log_type = "Night Scan" AND fine_amount > 0
      ORDER BY log_time DESC'
 );
-$myFinesStmt->execute([':sid' => $studentId]);
-$myFines = $myFinesStmt->fetchAll();
+$myFinesStmt->bind_param('i', $studentId);
+$myFinesStmt->execute();
+$myFinesResult = $myFinesStmt->get_result();
+$myFines = $myFinesResult->fetch_all(MYSQLI_ASSOC);
 
 /* ---- Roommates (State B) ---- */
 $roommates = [];
 if ($isAllocated) {
-    $rmStmt = $pdo->prepare(
+    $rmStmt = $conn->prepare(
         'SELECT s.sic_number, s.first_name, s.last_name, s.department, s.year_of_study, s.mobile_number
          FROM students s
-         WHERE s.room_id = :rid AND s.id != :me
+         WHERE s.room_id = ? AND s.id != ?
          ORDER BY s.first_name'
     );
-    $rmStmt->execute([':rid' => $myRoom['id'], ':me' => $studentId]);
-    $roommates = $rmStmt->fetchAll();
+    $rmStmt->bind_param('ii', $myRoom['id'], $studentId);
+    $rmStmt->execute();
+    $rmResult = $rmStmt->get_result();
+    $roommates = $rmResult->fetch_all(MYSQLI_ASSOC);
 }
 
 /* ---- My complaints (State B) ---- */
-$myComplaintsStmt = $pdo->prepare(
+$myComplaintsStmt = $conn->prepare(
     'SELECT ticket_id, category, subject, description, status, admin_remarks, created_at
-     FROM complaints WHERE student_id = :sid ORDER BY created_at DESC'
+     FROM complaints WHERE student_id = ? ORDER BY created_at DESC'
 );
-$myComplaintsStmt->execute([':sid' => $studentId]);
-$myComplaints = $myComplaintsStmt->fetchAll();
+$myComplaintsStmt->bind_param('i', $studentId);
+$myComplaintsStmt->execute();
+$myComplaintsResult = $myComplaintsStmt->get_result();
+$myComplaints = $myComplaintsResult->fetch_all(MYSQLI_ASSOC);
 
 /* ---- My visitors (State B) ---- */
-$myVisitorsStmt = $pdo->prepare(
+$myVisitorsStmt = $conn->prepare(
     'SELECT id, visitor_name, visit_date, in_time, out_time, relationship_to_student
-     FROM visitors WHERE student_id = :sid ORDER BY visit_date DESC, in_time DESC'
+     FROM visitors WHERE student_id = ? ORDER BY visit_date DESC, in_time DESC'
 );
-$myVisitorsStmt->execute([':sid' => $studentId]);
-$myVisitors = $myVisitorsStmt->fetchAll();
+$myVisitorsStmt->bind_param('i', $studentId);
+$myVisitorsStmt->execute();
+$myVisitorsResult = $myVisitorsStmt->get_result();
+$myVisitors = $myVisitorsResult->fetch_all(MYSQLI_ASSOC);
 ?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Student Dashboard - Hostel Portal</title>
+    <title>Student Dashboard - <?= e(PORTAL_NAME) ?></title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
     <link href="assets/css/style.css" rel="stylesheet">
+    <script src="./bootstrap/bootstrap.bundle.min.js"></script>
 </head>
-<body class="dashboard-body">
+<body class="dashboard-body" id="dashboardBody">
 
 <nav class="sidebar" id="sidebar">
     <div class="brand">
-        <span class="brand-dot"></span> Hostel Portal
+        <img class="brand-logo" src="./assets/images/brand-logo.png" alt="Brand logo">
+        <div class="brand-text">
+            <span class="brand-line">Silicon</span>
+            <span class="brand-line">Residence</span>
+        </div>
+        <button class="sidebar-toggle" id="sidebarToggle" type="button" aria-label="Toggle sidebar">
+            <i class="bi bi-chevron-left"></i>
+        </button>
     </div>
     <ul class="nav flex-column">
         <li class="nav-item">
             <a class="nav-link active" data-panel="notices" data-title="Notice Board">
-                <i class="bi bi-megaphone"></i> Notice Board
+                <i class="bi bi-megaphone"></i> <span>Notice Board</span>
             </a>
         </li>
 
         <?php if (!$isAllocated): /* ---- STATE A ---- */ ?>
         <li class="nav-item">
             <a class="nav-link" data-panel="availability" data-title="Room Availability">
-                <i class="bi bi-door-closed"></i> Room Availability
+                <i class="bi bi-door-closed"></i> <span>Room Availability</span>
             </a>
         </li>
         <li class="nav-item">
             <a class="nav-link" data-panel="applications" data-title="Room Allocation Status">
-                <i class="bi bi-file-earmark-text"></i> Allocation Status
+                <i class="bi bi-file-earmark-text"></i> <span>Allocation Status</span>
             </a>
         </li>
         <li class="nav-item">
             <a class="nav-link" data-panel="blocked" data-title="Access Denied">
-                <i class="bi bi-lock-fill"></i> Portal Services
+                <i class="bi bi-lock-fill"></i> <span>Portal Services</span>
             </a>
         </li>
 
         <?php else: /* ---- STATE B ---- */ ?>
         <li class="nav-item">
             <a class="nav-link" data-panel="myroom" data-title="My Room & Roommates">
-                <i class="bi bi-door-open"></i> My Room
+                <i class="bi bi-door-open"></i> <span>My Room</span>
             </a>
         </li>
         <li class="nav-item">
             <a class="nav-link" data-panel="gatelogs" data-title="Digital Gate Log">
-                <i class="bi bi-journal-text"></i> Gate Log
+                <i class="bi bi-journal-text"></i> <span>Gate Log</span>
             </a>
         </li>
         <li class="nav-item">
             <a class="nav-link" data-panel="complaints" data-title="Complaints Desk">
-                <i class="bi bi-exclamation-circle"></i> Complaints
+                <i class="bi bi-exclamation-circle"></i> <span>Complaints</span>
             </a>
         </li>
         <li class="nav-item">
             <a class="nav-link" data-panel="visitors" data-title="Visitors Log">
-                <i class="bi bi-people"></i> Visitors
+                <i class="bi bi-people"></i> <span>Visitors</span>
             </a>
         </li>
         <li class="nav-item">
             <a class="nav-link" data-panel="leave" data-title="Leave Application">
-                <i class="bi bi-calendar2-x"></i> Leave Application
+                <i class="bi bi-calendar2-x"></i> <span>Leave Application</span>
             </a>
         </li>
         <li class="nav-item">
             <a class="nav-link" data-panel="fines" data-title="Penalties / Fine Tracker">
-                <i class="bi bi-cash-coin"></i> Fine Tracker
+                <i class="bi bi-cash-coin"></i> <span>Fine Tracker</span>
             </a>
         </li>
         <?php endif; ?>
 
         <li class="nav-item mt-3">
             <a class="nav-link" href="logout.php">
-                <i class="bi bi-box-arrow-right"></i> Logout
+                <i class="bi bi-box-arrow-right"></i> <span>Logout</span>
             </a>
         </li>
     </ul>
@@ -480,8 +510,8 @@ $myVisitors = $myVisitorsStmt->fetchAll();
                             <i class="bi bi-wifi text-primary"></i>
                             <div class="small">
                                 <span class="badge bg-success me-1">Wi-Fi</span>
-                                <strong><?= e($myRoom['wifi_name'] ?? 'Hostel_HighSpeed_5G') ?></strong>
-                                <span class="text-muted ms-1">| Pass: <code><?= e($myRoom['wifi_password'] ?? 'Hostel@2026') ?></code></span>
+                                <strong><?= e($myRoom['wifi_name'] ?? 'Hostel_Zone_5G') ?></strong>
+                                <span class="text-muted ms-1">| Pass: <code><?= e($myRoom['wifi_password'] ?? 'HostelPass@2026') ?></code></span>
                             </div>
                         </div>
                     </div>
@@ -834,5 +864,36 @@ $myVisitors = $myVisitorsStmt->fetchAll();
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script src="assets/js/dashboard.js"></script>
+<script>
+    // Debug script to check if toggle button is working
+    document.addEventListener('DOMContentLoaded', function() {
+        const toggleBtn = document.getElementById('sidebarToggle');
+        if (toggleBtn) {
+            console.log('Toggle button found:', toggleBtn);
+            toggleBtn.addEventListener('click', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                console.log('Toggle button clicked');
+                const sidebar = document.getElementById('sidebar');
+                const body = document.getElementById('dashboardBody');
+                if (sidebar && body) {
+                    sidebar.classList.toggle('collapsed');
+                    body.classList.toggle('collapsed');
+                    console.log('Classes toggled. Sidebar collapsed:', sidebar.classList.contains('collapsed'));
+                    
+                    // Update icon
+                    const icon = toggleBtn.querySelector('i');
+                    if (icon) {
+                        icon.className = sidebar.classList.contains('collapsed') 
+                            ? 'bi bi-chevron-right' 
+                            : 'bi bi-chevron-left';
+                    }
+                }
+            });
+        } else {
+            console.error('Toggle button not found');
+        }
+    });
+</script>
 </body>
 </html>

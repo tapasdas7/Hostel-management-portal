@@ -2,12 +2,16 @@
 /**
  * Login Process (backend)
  * - Receives the login form via POST.
- * - Validates input, queries the students table with a PDO prepared statement.
+ * - Validates input, queries the students table with a MySQLi prepared statement.
  * - Verifies the hashed password with password_verify().
  * - Initializes a secure $_SESSION and redirects to the role-specific dashboard.
  */
 
 declare(strict_types=1);
+
+ini_set('display_errors', '1');
+ini_set('display_startup_errors', '1');
+error_reporting(E_ALL);
 
 require_once __DIR__ . '/config/db.php';
 require_once __DIR__ . '/includes/auth.php';
@@ -26,12 +30,14 @@ if ($sic_number === '' || $password === '') {
 }
 
 try {
-    $stmt = $pdo->prepare('SELECT id, sic_number, first_name, password_hash, role
+    $stmt = $conn->prepare('SELECT id, sic_number, first_name, password_hash, role
                            FROM students
-                           WHERE sic_number = :sic
+                           WHERE sic_number = ?
                            LIMIT 1');
-    $stmt->execute([':sic' => $sic_number]);
-    $student = $stmt->fetch();
+    $stmt->bind_param('s', $sic_number);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    $student = $result->fetch_assoc();
 
     if ($student && password_verify($password, $student['password_hash'])) {
         session_regenerate_id(true);
@@ -47,7 +53,7 @@ try {
     header('Location: index.php?error=' . urlencode('Invalid SIC number or password.'));
     exit;
 
-} catch (PDOException $e) {
+} catch (Exception $e) {
     header('Location: index.php?error=' . urlencode('A server error occurred. Please try again.'));
     exit;
 }

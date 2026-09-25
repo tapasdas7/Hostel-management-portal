@@ -6,7 +6,12 @@
  *         Room Allocation, Complaints, Notices, Visitors, Vacancy
  */
 
-require_once __DIR__ . '/config/db.php';
+declare(strict_types=1);
+
+ini_set('display_errors', '1');
+ini_set('display_startup_errors', '1');
+error_reporting(E_ALL);
+
 require_once __DIR__ . '/includes/auth.php';
 require_once __DIR__ . '/includes/admin_shared.php';
 require_role('admin');
@@ -14,7 +19,7 @@ require_role('admin');
 $student = current_student();
 
 /* ---- Manager accounts ---- */
-$managers = $pdo->query(
+$managersResult = $conn->query(
     'SELECT s.id, s.sic_number, s.first_name, s.last_name, s.email, s.mobile_number,
             h.hostel_name
      FROM students s
@@ -22,98 +27,102 @@ $managers = $pdo->query(
      LEFT JOIN hostels h ON h.id = a.hostel_id
      WHERE s.role = "manager"
      ORDER BY s.first_name'
-)->fetchAll();
+);
+$managers = $managersResult->fetch_all(MYSQLI_ASSOC);
 ?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Admin Dashboard - Hostel Portal</title>
+    <title>Admin Dashboard - <?= e(PORTAL_NAME) ?></title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
     <link href="assets/css/style.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 </head>
-<body class="dashboard-body">
+<body class="dashboard-body" id="dashboardBody">
 
 <nav class="sidebar" id="sidebar">
     <div class="brand">
-        <span class="brand-dot"></span> Hostel Portal
+        <img class="brand-logo rounded-1 p-2" src="./assets/images/brand-logo.png">
+        <div class="brand-text">
+            <span class="brand-line">Silicon</span>
+            <span class="brand-line">Residence</span>
+        </div>
+        <button class="sidebar-toggle" id="sidebarToggle" type="button" aria-label="Toggle sidebar">
+            <i class="bi bi-chevron-left"></i>
+        </button>
     </div>
     <ul class="nav flex-column">
         <li class="nav-item">
             <a class="nav-link active" data-panel="metrics" data-title="Super Admin Dashboard">
-                <i class="bi bi-graph-up"></i> Metrics Dashboard
+                <i class="bi bi-graph-up"></i> <span>Metrics Dashboard</span>
             </a>
         </li>
         <li class="nav-item">
             <a class="nav-link" data-panel="add-student" data-title="Add Student Profile">
-                <i class="bi bi-person-plus-fill"></i> Add Student
+                <i class="bi bi-person-plus-fill"></i> <span>Add Student</span>
             </a>
         </li>
         <li class="nav-item">
             <a class="nav-link" data-panel="students" data-title="Student Master Records">
-                <i class="bi bi-person-lines-fill"></i> Student Records
+                <i class="bi bi-person-lines-fill"></i> <span>Student Records</span>
             </a>
         </li>
         <li class="nav-item">
             <a class="nav-link" data-panel="managers" data-title="Manage Hostels & Managers">
-                <i class="bi bi-shield-lock"></i> Managers & Hostels
+                <i class="bi bi-shield-lock"></i> <span>Managers & Hostels</span>
             </a>
         </li>
         <li class="nav-item">
             <a class="nav-link" data-panel="allocation" data-title="Room Allocation Control">
-                <i class="bi bi-clipboard-check"></i> Room Allocation
+                <i class="bi bi-clipboard-check"></i> <span>Room Allocation</span>
             </a>
         </li>
         <li class="nav-item">
             <a class="nav-link" data-panel="complaints" data-title="Complaints Desk & Resolution">
-                <i class="bi bi-exclamation-circle"></i> Complaints
+                <i class="bi bi-exclamation-circle"></i> <span>Complaints</span>
             </a>
         </li>
         <li class="nav-item">
             <a class="nav-link" data-panel="notice" data-title="Notice Broadcaster">
-                <i class="bi bi-megaphone"></i> Notice Broadcaster
+                <i class="bi bi-megaphone"></i> <span>Notice Broadcaster</span>
             </a>
         </li>
         <li class="nav-item">
             <a class="nav-link" data-panel="visitors" data-title="Visitors Control">
-                <i class="bi bi-people-fill"></i> Visitors Control
-            </a>
-        </li>
-        <li class="nav-item">
-            <a class="nav-link" data-panel="vacating" data-title="Vacancy Management">
-                <i class="bi bi-house-exit"></i> Vacancy Mgmt
+                <i class="bi bi-people-fill"></i> <span>Visitors Control</span>
             </a>
         </li>
         <li class="nav-item">
             <a class="nav-link" data-panel="leave" data-title="Leave Applications Desk">
-                <i class="bi bi-calendar2-x"></i> Leave Desk
+                <i class="bi bi-calendar2-x"></i> <span>Leave Desk</span>
             </a>
         </li>
         <li class="nav-item">
-            <a class="nav-link" data-panel="nightscan" data-title="Night Attendance Scanner">
-                <i class="bi bi-qr-barcode-scan"></i> Night Scanner
+            <a class="nav-link" data-panel="nightscan" data-title="Attendance Scanner">
+                <i class="bi bi-qr-barcode-scan"></i> <span>Attendance</span>
             </a>
         </li>
         <li class="nav-item">
             <a class="nav-link" data-panel="fines" data-title="Fine Collector">
-                <i class="bi bi-cash-coin"></i> Fine Collector
+                <i class="bi bi-cash-coin"></i> <span>Fine Collector</span>
             </a>
         </li>
         <li class="nav-item">
             <a class="nav-link" data-panel="wifi" data-title="Wi-Fi Management">
-                <i class="bi bi-wifi"></i> Wi-Fi Mgmt
+                <i class="bi bi-wifi"></i> <span>Wi-Fi Mgmt</span>
             </a>
         </li>
         <li class="nav-item">
-            <a class="nav-link" data-panel="furniture" data-title="Furniture Inventory">
-                <i class="bi bi-lamp"></i> Furniture
+            <a class="nav-link" data-panel="admin-rooms" data-title="Room Infrastructure Control">
+                <i class="bi bi-building"></i> <span>Room Infrastructure</span>
             </a>
         </li>
         <li class="nav-item mt-3">
             <a class="nav-link" href="logout.php">
-                <i class="bi bi-box-arrow-right"></i> Logout
+                <i class="bi bi-box-arrow-right"></i> <span>Logout</span>
             </a>
         </li>
     </ul>
@@ -152,7 +161,7 @@ $managers = $pdo->query(
     <div class="panel active" id="panel-metrics">
         <div class="row g-3 mb-3">
             <div class="col-sm-6 col-lg-3">
-                <div class="card metric-card h-100">
+                <div class="card metric-card h-100" style="cursor: pointer;" onclick="window.location.href='admin_dashboard.php?panel=students'">
                     <div class="card-body d-flex align-items-center gap-3">
                         <div class="metric-icon bg-primary-subtle text-primary"><i class="bi bi-people-fill"></i></div>
                         <div>
@@ -163,7 +172,7 @@ $managers = $pdo->query(
                 </div>
             </div>
             <div class="col-sm-6 col-lg-3">
-                <div class="card metric-card h-100">
+                <div class="card metric-card h-100" style="cursor: pointer;" onclick="window.location.href='admin_dashboard.php?panel=admin-rooms'">
                     <div class="card-body d-flex align-items-center gap-3">
                         <div class="metric-icon bg-info-subtle text-info"><i class="bi bi-door-open"></i></div>
                         <div>
@@ -185,7 +194,7 @@ $managers = $pdo->query(
                 </div>
             </div>
             <div class="col-sm-6 col-lg-3">
-                <div class="card metric-card h-100">
+                <div class="card metric-card h-100" style="cursor: pointer;" onclick="window.location.href='admin_dashboard.php?panel=complaints'">
                     <div class="card-body d-flex align-items-center gap-3">
                         <div class="metric-icon bg-warning-subtle text-warning"><i class="bi bi-exclamation-triangle"></i></div>
                         <div>
@@ -693,82 +702,6 @@ $managers = $pdo->query(
         </div>
     </div>
 
-    <!-- Panel: Vacancy Management -->
-    <div class="panel" id="panel-vacating">
-        <div class="card">
-            <div class="card-header"><i class="bi bi-house-exit me-1"></i> Vacancy Management</div>
-            <div class="card-body">
-                <?php if (empty($pendingVacating)): ?>
-                    <p class="text-muted text-center my-4">No vacating requests.</p>
-                <?php else: ?>
-                    <div class="table-responsive">
-                        <table class="table table-hover align-middle">
-                            <thead><tr><th>Student</th><th>Room</th><th>Vacate Date</th><th>Reason</th><th>Status</th><th>Action</th></tr></thead>
-                            <tbody>
-                                <?php foreach ($pendingVacating as $v): ?>
-                                <tr>
-                                    <td><?= e($v['first_name'] . ' (' . $v['sic_number'] . ')') ?></td>
-                                    <td><?= e($v['room_number'] ?? '—') ?></td>
-                                    <td class="small"><?= date('d M Y', strtotime($v['vacate_date'])) ?></td>
-                                    <td class="small"><?= e($v['reason']) ?></td>
-                                    <td><span class="badge <?= statusBadgeClass($v['status']) ?>"><?= e($v['status']) ?></span></td>
-                                    <td>
-                                        <?php if ($v['status'] === 'Pending'): ?>
-                                            <form method="POST" action="admin_dashboard.php" class="d-inline">
-                                                <input type="hidden" name="form_action" value="approve_vacating">
-                                                <input type="hidden" name="vacating_id" value="<?= (int)$v['id'] ?>">
-                                                <input type="hidden" name="student_id" value="<?= (int)$v['student_id'] ?>">
-                                                <input type="hidden" name="room_id" value="<?= (int)($v['room_id'] ?? 0) ?>">
-                                                <button type="submit" class="btn btn-sm btn-success" onclick="return confirm('Approve?')"><i class="bi bi-check-lg"></i></button>
-                                            </form>
-                                            <form method="POST" action="admin_dashboard.php" class="d-inline">
-                                                <input type="hidden" name="form_action" value="reject_vacating">
-                                                <input type="hidden" name="vacating_id" value="<?= (int)$v['id'] ?>">
-                                                <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('Reject?')"><i class="bi bi-x-lg"></i></button>
-                                            </form>
-                                        <?php else: ?>
-                                            <span class="text-muted small">Reviewed</span>
-                                        <?php endif; ?>
-                                    </td>
-                                </tr>
-                                <?php endforeach; ?>
-                            </tbody>
-                        </table>
-                    </div>
-                <?php endif; ?>
-            </div>
-        </div>
-    </div>
-
-    <!-- Panel: Furniture Inventory -->
-    <div class="panel" id="panel-furniture">
-        <div class="card">
-            <div class="card-header"><i class="bi bi-lamp me-1"></i> Furniture Inventory</div>
-            <div class="card-body">
-                <?php if (empty($furnitureList)): ?>
-                    <p class="text-muted text-center my-4">No furniture records found.</p>
-                <?php else: ?>
-                    <div class="table-responsive">
-                        <table class="table table-hover align-middle">
-                            <thead><tr><th>Room</th><th>Hostel</th><th>Type</th><th>Qty</th><th>Condition</th></tr></thead>
-                            <tbody>
-                                <?php foreach ($furnitureList as $f): ?>
-                                <tr>
-                                    <td><?= e($f['room_number']) ?></td>
-                                    <td class="small"><?= e($f['hostel_name'] ?? '—') ?></td>
-                                    <td><?= e($f['furniture_type']) ?></td>
-                                    <td><?= (int)$f['quantity'] ?></td>
-                                    <td class="small"><?= e($f['condition_note']) ?></td>
-                                </tr>
-                                <?php endforeach; ?>
-                            </tbody>
-                        </table>
-                    </div>
-                <?php endif; ?>
-            </div>
-        </div>
-    </div>
-
     <!-- Panel: Leave Applications Approval Desk -->
     <div class="panel" id="panel-leave">
         <div class="card">
@@ -815,12 +748,12 @@ $managers = $pdo->query(
         </div>
     </div>
 
-    <!-- Panel: Night Attendance Scanner -->
+    <!-- Panel: Attendance Scanner -->
     <div class="panel" id="panel-nightscan">
         <div class="row g-4">
             <div class="col-lg-5">
                 <div class="card">
-                    <div class="card-header"><i class="bi bi-qr-barcode-scan me-1"></i> Digital Night Scanner</div>
+                    <div class="card-header"><i class="bi bi-qr-barcode-scan me-1"></i> Digital Attendance Scanner</div>
                     <div class="card-body">
                         <p class="text-muted small mb-3">Enter or scan a student's SIC number to mark them present for tonight's attendance.</p>
                         <form method="POST" action="admin_dashboard.php" class="needs-validation" novalidate>
@@ -839,7 +772,7 @@ $managers = $pdo->query(
                         <form method="POST" action="admin_dashboard.php">
                             <input type="hidden" name="form_action" value="process_absentees">
                             <button type="submit" class="btn btn-danger w-100" onclick="return confirm('Close tonight\'s scan and fine all absent hostellites ₹50 each?')">
-                                <i class="bi bi-box-arrow-right me-1"></i> Close Night Scan & Process Absentees
+                                <i class="bi bi-box-arrow-right me-1"></i> Close Attendance Scan & Process Absentees
                             </button>
                         </form>
                     </div>
@@ -923,22 +856,23 @@ $managers = $pdo->query(
     <!-- Panel: Wi-Fi Management -->
     <div class="panel" id="panel-wifi">
         <div class="card">
-            <div class="card-header"><i class="bi bi-wifi me-1"></i> Wi-Fi Management Control</div>
+            <div class="card-header"><i class="bi bi-wifi me-1"></i> Hostel Wi-Fi Management</div>
             <div class="card-body">
-                <p class="text-muted small mb-3">Update Wi-Fi credentials for any room. Changes are instantly visible to the student's room card.</p>
+                <p class="text-muted small mb-3">Update Wi-Fi credentials for entire hostels. All rooms within a hostel share the same network.</p>
                 <div class="table-responsive">
                     <table class="table table-hover align-middle">
-                        <thead><tr><th>Room</th><th>Type</th><th>Wi-Fi Name</th><th>Wi-Fi Password</th><th>Action</th></tr></thead>
+                        <thead><tr><th>Hostel</th><th>Rooms</th><th>Students</th><th>Wi-Fi Name</th><th>Wi-Fi Password</th><th>Action</th></tr></thead>
                         <tbody>
-                            <?php foreach ($allRoomsWifi as $rm): ?>
+                            <?php foreach ($hostels as $h): ?>
                             <tr>
-                                <td><strong><?= e($rm['room_number']) ?></strong></td>
-                                <td class="small"><?= e($rm['type']) ?> / <?= e($rm['sharing_style']) ?></td>
+                                <td><strong><?= e($h['hostel_name']) ?></strong></td>
+                                <td class="small"><?= (int)$h['no_of_rooms'] ?></td>
+                                <td class="small"><?= (int)$h['no_of_students'] ?></td>
                                 <form method="POST" action="admin_dashboard.php" class="d-flex gap-1 align-items-center">
                                     <input type="hidden" name="form_action" value="update_wifi">
-                                    <input type="hidden" name="room_id" value="<?= (int)$rm['id'] ?>">
-                                    <td><input type="text" name="wifi_name" class="form-control form-control-sm" value="<?= e($rm['wifi_name']) ?>" style="width:160px"></td>
-                                    <td><input type="text" name="wifi_password" class="form-control form-control-sm" value="<?= e($rm['wifi_password']) ?>" style="width:140px"></td>
+                                    <input type="hidden" name="hostel_id" value="<?= (int)$h['id'] ?>">
+                                    <td><input type="text" name="wifi_name" class="form-control form-control-sm" value="<?= e($h['wifi_name']) ?>" style="width:160px"></td>
+                                    <td><input type="text" name="wifi_password" class="form-control form-control-sm" value="<?= e($h['wifi_password']) ?>" style="width:140px"></td>
                                     <td><button type="submit" class="btn btn-sm btn-primary"><i class="bi bi-check-lg"></i> Update</button></td>
                                 </form>
                             </tr>
@@ -950,9 +884,166 @@ $managers = $pdo->query(
         </div>
     </div>
 
+    <!-- Panel: Room Infrastructure Control -->
+    <div class="panel" id="panel-admin-rooms">
+        <div class="row g-4">
+            <div class="col-lg-4">
+                <div class="card">
+                    <div class="card-header"><i class="bi bi-plus-circle me-1"></i> Add New Room</div>
+                    <div class="card-body">
+                        <form method="POST" action="admin_dashboard.php" class="needs-validation" novalidate>
+                            <input type="hidden" name="form_action" value="add_room">
+                            <div class="mb-3">
+                                <label class="form-label">Room Number</label>
+                                <input type="text" name="room_number" class="form-control" placeholder="e.g. A-101" required>
+                                <div class="invalid-feedback">Room number is required.</div>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Hostel</label>
+                                <select name="hostel_id" class="form-select" required>
+                                    <option value="">-- Select hostel --</option>
+                                    <?php foreach ($hostels as $h): ?>
+                                        <option value="<?= (int)$h['id'] ?>"><?= e($h['hostel_name']) ?></option>
+                                    <?php endforeach; ?>
+                                </select>
+                                <div class="invalid-feedback">Please select a hostel.</div>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Room Type</label>
+                                <select name="type" class="form-select">
+                                    <option value="Non-AC">Non-AC</option>
+                                    <option value="AC">AC</option>
+                                </select>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Sharing Style</label>
+                                <select name="sharing_style" class="form-select">
+                                    <option value="Shared">Shared</option>
+                                    <option value="Single">Single</option>
+                                </select>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Total Capacity</label>
+                                <input type="number" name="total_capacity" class="form-control" value="2" min="1" max="10" required>
+                                <div class="invalid-feedback">Capacity must be at least 1.</div>
+                            </div>
+                            <button type="submit" class="btn btn-primary w-100"><i class="bi bi-plus-lg me-1"></i> Create Room</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-8">
+                <div class="card">
+                    <div class="card-header"><i class="bi bi-building me-1"></i> Room Inventory</div>
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="table table-hover align-middle">
+                                <thead><tr><th>Room</th><th>Hostel</th><th>Type</th><th>Sharing</th><th>Capacity</th><th>Occupied</th><th>Actions</th></tr></thead>
+                                <tbody>
+                                    <?php foreach ($allRoomsInfra as $r): ?>
+                                    <tr>
+                                        <td><strong><?= e($r['room_number']) ?></strong></td>
+                                        <td class="small"><?= e($r['hostel_name'] ?? '—') ?></td>
+                                        <td><span class="badge bg-light text-dark"><?= e($r['type']) ?></span></td>
+                                        <td><span class="badge bg-light text-dark"><?= e($r['sharing_style']) ?></span></td>
+                                        <td><?= (int)$r['total_capacity'] ?></td>
+                                        <td><?= (int)$r['occupied'] ?></td>
+                                        <td>
+                                            <button class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#editRoomModal<?= (int)$r['id'] ?>">
+                                                <i class="bi bi-pencil"></i>
+                                            </button>
+                                            <form method="POST" action="admin_dashboard.php" class="d-inline">
+                                                <input type="hidden" name="form_action" value="delete_room">
+                                                <input type="hidden" name="room_id" value="<?= (int)$r['id'] ?>">
+                                                <button type="submit" class="btn btn-sm btn-outline-danger" onclick="return confirm('Delete room <?= e($r['room_number']) ?>? This cannot be undone.')">
+                                                    <i class="bi bi-trash"></i>
+                                                </button>
+                                            </form>
+                                        </td>
+                                    </tr>
+                                    <!-- Edit Room Modal -->
+                                    <div class="modal fade" id="editRoomModal<?= (int)$r['id'] ?>" tabindex="-1">
+                                        <div class="modal-dialog">
+                                            <div class="modal-content">
+                                                <form method="POST" action="admin_dashboard.php" class="needs-validation" novalidate>
+                                                    <input type="hidden" name="form_action" value="update_room">
+                                                    <input type="hidden" name="room_id" value="<?= (int)$r['id'] ?>">
+                                                    <div class="modal-header">
+                                                        <h5 class="modal-title">Edit Room <?= e($r['room_number']) ?></h5>
+                                                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                                    </div>
+                                                    <div class="modal-body">
+                                                        <div class="mb-3">
+                                                            <label class="form-label">Room Type</label>
+                                                            <select name="type" class="form-select">
+                                                                <option value="Non-AC" <?= $r['type'] === 'Non-AC' ? 'selected' : '' ?>>Non-AC</option>
+                                                                <option value="AC" <?= $r['type'] === 'AC' ? 'selected' : '' ?>>AC</option>
+                                                            </select>
+                                                        </div>
+                                                        <div class="mb-3">
+                                                            <label class="form-label">Sharing Style</label>
+                                                            <select name="sharing_style" class="form-select">
+                                                                <option value="Shared" <?= $r['sharing_style'] === 'Shared' ? 'selected' : '' ?>>Shared</option>
+                                                                <option value="Single" <?= $r['sharing_style'] === 'Single' ? 'selected' : '' ?>>Single</option>
+                                                            </select>
+                                                        </div>
+                                                        <div class="mb-3">
+                                                            <label class="form-label">Total Capacity</label>
+                                                            <input type="number" name="total_capacity" class="form-control" value="<?= (int)$r['total_capacity'] ?>" min="1" max="10" required>
+                                                        </div>
+                                                    </div>
+                                                    <div class="modal-footer">
+                                                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                                                        <button type="submit" class="btn btn-primary">Save Changes</button>
+                                                    </div>
+                                                </form>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <?php endforeach; ?>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script src="assets/js/dashboard.js"></script>
+<script>
+    // Debug script to check if toggle button is working
+    document.addEventListener('DOMContentLoaded', function() {
+        const toggleBtn = document.getElementById('sidebarToggle');
+        if (toggleBtn) {
+            console.log('Toggle button found:', toggleBtn);
+            toggleBtn.addEventListener('click', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                console.log('Toggle button clicked');
+                const sidebar = document.getElementById('sidebar');
+                const body = document.getElementById('dashboardBody');
+                if (sidebar && body) {
+                    sidebar.classList.toggle('collapsed');
+                    body.classList.toggle('collapsed');
+                    console.log('Classes toggled. Sidebar collapsed:', sidebar.classList.contains('collapsed'));
+                    
+                    // Update icon
+                    const icon = toggleBtn.querySelector('i');
+                    if (icon) {
+                        icon.className = sidebar.classList.contains('collapsed') 
+                            ? 'bi bi-chevron-right' 
+                            : 'bi bi-chevron-left';
+                    }
+                }
+            });
+        } else {
+            console.error('Toggle button not found');
+        }
+    });
+</script>
 </body>
 </html>

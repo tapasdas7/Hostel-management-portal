@@ -1,10 +1,17 @@
 <?php
 /**
- * Database connection using PDO (MySQL).
- * Credentials are centralized here so every page imports the same $pdo.
+ * Database connection using MySQLi (Object-Oriented).
+ * Credentials are centralized here so every page imports the same $conn.
  */
 
 declare(strict_types=1);
+
+ini_set('display_errors', '1');
+ini_set('display_startup_errors', '1');
+error_reporting(E_ALL);
+
+// ---- Portal Branding Configuration ----
+define('PORTAL_NAME', 'Silicon Residence');
 
 // ---- Database credentials ----
 $DB_HOST = 'localhost';
@@ -14,24 +21,22 @@ $DB_USER = 'root';
 // If you changed the MySQL password, update this value accordingly.
 $DB_PASS = '';
 
-// ---- PDO DSN ----
-$dsn = "mysql:host={$DB_HOST};dbname={$DB_NAME};charset=utf8mb4";
-
-// ---- PDO options ----
-$options = [
-    PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,   // throw exceptions on error
-    PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,         // associative arrays
-    PDO::ATTR_EMULATE_PREPARES   => false,                    // real prepared statements
-];
-
 // ---- Development mode (set to false on a live/production server) ----
 // When true, the error message includes the actual MySQL reason so you can
 // diagnose connection issues. Always set to false in production.
 $DEV_MODE = true;
 
+// ---- Enable MySQLi exception throwing ----
+mysqli_report(MYSQLI_REPORT_ERROR | MYSQLI_REPORT_STRICT);
+
 try {
-    $pdo = new PDO($dsn, $DB_USER, $DB_PASS, $options);
-} catch (PDOException $e) {
+    $conn = new mysqli($DB_HOST, $DB_USER, $DB_PASS, $DB_NAME);
+    
+    // Set charset to utf8mb4
+    if (!$conn->set_charset('utf8mb4')) {
+        throw new Exception('Failed to set charset to utf8mb4');
+    }
+} catch (Exception $e) {
     http_response_code(500);
     $message = 'Database connection failed. Please contact the administrator.';
     if ($DEV_MODE) {
