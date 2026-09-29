@@ -97,7 +97,7 @@ php -S localhost:8000
 
 ## Security
 
-- **SQL injection**: all queries use PDO prepared statements with bound parameters.
+- **SQL injection**: all queries use MySQLi prepared statements with bound parameters.
 - **Password hashing**: BCrypt via `password_hash()` / `password_verify()`.
 - **Session security**: `session_regenerate_id(true)` on login; httponly + samesite cookies.
 - **Role guards**: `require_role()` enforces per-page access control and redirects unauthorized users.
