@@ -1,8 +1,5 @@
 <?php
-/**
- * Database connection using MySQLi (Object-Oriented).
- * Credentials are centralized here so every page imports the same $conn.
- */
+
 
 declare(strict_types=1);
 
